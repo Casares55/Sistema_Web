@@ -2,47 +2,83 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
+    // === Configuración básica ===
+    protected $table = 'users'; // tabla usada
+    protected $primaryKey = 'id'; // PK por defecto
+    public $timestamps = true; // usa created_at y updated_at
+
+    // === Campos asignables en masa ===
     protected $fillable = [
-        'name',
+        'nombre',
+        'ap',
+        'am',
         'email',
         'password',
+        'rol_id',
+        'estado',
+        'ultimo_login',
+        'fecha_creacion',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
+    // === Campos ocultos (por seguridad) ===
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
+    // === Conversiones automáticas ===
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'ultimo_login' => 'datetime',
+            'estado' => 'boolean',
+            'password' => 'hashed', // Laravel 11+ usa 'hashed' para Hash::make automático
         ];
     }
+
+    // === Relaciones ===
+    public function rol()
+    {
+        return $this->belongsTo(Rol::class, 'rol_id', 'id_rol');
+    }
+    public function esAdmin(): bool
+    {
+        return optional($this->rol)->descripcion === 'admin';
+    }
+
+    public function esDocente(): bool
+    {
+        return optional($this->rol)->descripcion === 'docente';
+    }
+
+    public function esTutor(): bool
+    {
+        return optional($this->rol)->descripcion === 'tutor';
+    }
+
+
+    // === Accesor para nombre completo (útil para dashboards) ===
+    protected function nombreCompleto(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => trim("{$this->nombre} {$this->ap} {$this->am}")
+        );
+    }
+
+    // === Actualizar último login fácilmente ===
+    public function actualizarUltimoLogin(): void
+    {
+        $this->update(['ultimo_login' => now()]);
+    }
+
 }
